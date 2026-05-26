@@ -2,6 +2,12 @@
 
 Extract full token usage, cost, model breakdown, tool usage, and timing for an opencode session including all its subagent child sessions.
 
+## Motivation
+
+OpenCode's built-in session stats only show token usage for the **root session**. When the [Task tool](https://opencode.ai) spawns subagents, each subagent runs in its own child session with its own token usage, model calls, and tool invocations. OpenCode has no built-in way to aggregate stats across the full session tree. Sessions using many subagents often appear deceptively cheap in the built-in stats.
+
+This script recursively crawls the parent-child session tree to report the **total cost** of a session, including every subagent launched during it.
+
 ## How it works
 
 OpenCode stores session data in a local SQLite database. When the Task tool spawns a subagent, it creates a **child session** linked via `parent_id`. This script uses recursive CTEs to walk the full session tree from a given root and aggregate statistics across all child sessions.
