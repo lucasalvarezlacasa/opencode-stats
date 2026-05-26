@@ -1,0 +1,55 @@
+# opencode-session-stats
+
+Extract full token usage, cost, model breakdown, tool usage, and timing for an opencode session including all its subagent child sessions.
+
+## How it works
+
+OpenCode stores session data in a local SQLite database. When the Task tool spawns a subagent, it creates a **child session** linked via `parent_id`. This script uses recursive CTEs to walk the full session tree from a given root and aggregate statistics across all child sessions.
+
+## Requirements
+
+- `sqlite3` (with JSON1 — standard since SQLite 3.38+)
+- Optional: `jq` for prettier JSON output
+- Optional: `opencode` CLI for automatic DB path discovery
+
+## Usage
+
+```bash
+# List recent root sessions
+./session-stats.sh --list
+
+# Stats for a specific session (table format)
+./session-stats.sh ses_01JXY...
+
+# Stats as JSON
+./session-stats.sh --json ses_01JXY...
+
+# Stats for the most recent root session
+./session-stats.sh --latest
+
+# Override the database path
+./session-stats.sh --db ~/.local/share/opencode/opencode.db ses_01JXY...
+```
+
+## Output sections
+
+| Section | Description |
+|---------|-------------|
+| **Session Overview** | Tree size, message count, wall time |
+| **Cost & Tokens** | Aggregated cost and token breakdown (input, output, reasoning, cache read/write) |
+| **Model Breakdown** | Per-agent/model usage: messages, cost, tokens |
+| **Tool Usage** | Histogram of tool invocations across the tree |
+| **Session Tree** | Visual tree of parent + child sessions with per-node totals |
+
+## Database location
+
+The script discovers the DB automatically:
+1. Runs `opencode db path` if the CLI is available
+2. Falls back to `$XDG_DATA_HOME/opencode/opencode.db` (typically `~/.local/share/opencode/opencode.db`)
+3. Can be overridden with `--db PATH`
+
+## Notes
+
+- Token counts on the `session` row are **per-session only** (not recursive). The script sums them across the tree.
+- "Wall time" is derived from `time_created` of the earliest session to `time_updated` of the latest in the tree — it's a rough upper bound, not active computation time.
+- The model breakdown uses per-message JSON data (`message.data`) which includes per-turn cost and tokens reported by the LLM provider.
