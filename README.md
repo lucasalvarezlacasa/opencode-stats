@@ -8,13 +8,16 @@ OpenCode stores session data in a local SQLite database. When the Task tool spaw
 
 ## Requirements
 
-- `sqlite3` (with JSON1 — standard since SQLite 3.38+)
+- `sqlite3` CLI with JSON output mode and JSON1 support (SQLite 3.38+ recommended)
 - Optional: `jq` for prettier JSON output
 - Optional: `opencode` CLI for automatic DB path discovery
 
 ## Usage
 
 ```bash
+# Make the script executable if needed
+chmod +x session-stats.sh
+
 # List recent root sessions
 ./session-stats.sh --list
 
@@ -50,6 +53,8 @@ The script discovers the DB automatically:
 
 ## Notes
 
+- The script is read-only: it queries the local opencode database and does not modify it.
 - Token counts on the `session` row are **per-session only** (not recursive). The script sums them across the tree.
 - "Wall time" is derived from `time_created` of the earliest session to `time_updated` of the latest in the tree — it's a rough upper bound, not active computation time.
 - The model breakdown uses per-message JSON data (`message.data`) which includes per-turn cost and tokens reported by the LLM provider.
+- Session IDs are validated before querying SQLite and must use the normal `ses_...` opencode format.

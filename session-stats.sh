@@ -65,6 +65,10 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --db)
+      if [[ $# -lt 2 || -z "$2" ]]; then
+        echo "Error: --db requires a path." >&2
+        exit 1
+      fi
       DB_PATH_OVERRIDE="$2"
       shift 2
       ;;
@@ -76,6 +80,10 @@ while [[ $# -gt 0 ]]; do
       exit 1
       ;;
     *)
+      if [[ -n "$SESSION_ID" ]]; then
+        echo "Error: Multiple session IDs provided: $SESSION_ID and $1" >&2
+        exit 1
+      fi
       SESSION_ID="$1"
       shift
       ;;
@@ -86,6 +94,10 @@ done
 
 discover_db() {
   if [[ -n "$DB_PATH_OVERRIDE" ]]; then
+    if [[ ! -f "$DB_PATH_OVERRIDE" ]]; then
+      echo "Error: Database not found: $DB_PATH_OVERRIDE" >&2
+      exit 1
+    fi
     echo "$DB_PATH_OVERRIDE"
     return
   fi
@@ -181,6 +193,12 @@ if [[ -z "$SESSION_ID" ]]; then
   exit 1
 fi
 
+if [[ ! "$SESSION_ID" =~ ^ses_[A-Za-z0-9_-]+$ ]]; then
+  echo "Error: Invalid session ID: $SESSION_ID" >&2
+  echo "Session IDs must start with 'ses_' and contain only letters, numbers, underscores, or hyphens." >&2
+  exit 1
+fi
+
 # Verify session exists
 EXISTS=$(sql_raw "SELECT COUNT(*) FROM session WHERE id = '$SESSION_ID';")
 if [[ "$EXISTS" == "0" ]]; then
@@ -216,7 +234,7 @@ SELECT
   (SELECT COALESCE(SUM(tokens_reasoning), 0) FROM tree) AS reasoning_tokens,
   (SELECT COALESCE(SUM(tokens_cache_read), 0) FROM tree) AS cache_read_tokens,
   (SELECT COALESCE(SUM(tokens_cache_write), 0) FROM tree) AS cache_write_tokens,
-  (SELECT COALESCE(SUM(tokens_input + tokens_output + tokens_reasoning + tokens_cache_read + tokens_cache_write), 0) FROM tree) AS total_tokens,
+  (SELECT COALESCE(SUM(COALESCE(tokens_input, 0) + COALESCE(tokens_output, 0) + COALESCE(tokens_reasoning, 0) + COALESCE(tokens_cache_read, 0) + COALESCE(tokens_cache_write, 0)), 0) FROM tree) AS total_tokens,
   (SELECT MIN(time_created) FROM tree) AS started_ms,
   (SELECT MAX(time_updated) FROM tree) AS ended_ms,
   ROUND((SELECT (MAX(time_updated) - MIN(time_created)) / 1000.0 FROM tree), 1) AS wall_seconds;
@@ -280,7 +298,7 @@ WITH RECURSIVE tree AS (
   JOIN tree t ON s.parent_id = t.id
 )
 SELECT id, depth, agent, ROUND(cost, 6) AS cost,
-       tokens_input + tokens_output + tokens_reasoning + tokens_cache_read + tokens_cache_write AS total_tokens,
+       COALESCE(tokens_input, 0) + COALESCE(tokens_output, 0) + COALESCE(tokens_reasoning, 0) + COALESCE(tokens_cache_read, 0) + COALESCE(tokens_cache_write, 0) AS total_tokens,
        SUBSTR(title, 1, 60) AS title
 FROM tree
 ORDER BY time_created ASC;
