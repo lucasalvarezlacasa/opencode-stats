@@ -40,6 +40,79 @@ chmod +x session-stats.sh
 ./session-stats.sh --db ~/.local/share/opencode/opencode.db ses_01JXY...
 ```
 
+## opencode integration
+
+This repository also includes an optional opencode integration that adds a `/stats` command inside the opencode TUI.
+
+When you run `/stats`, opencode calls the `session_stats` custom tool. The tool reads the current opencode session ID from the tool execution context and runs:
+
+```bash
+bash session-stats.sh <current-session-id>
+```
+
+The output is the same human-readable table format as the standalone script. The command does not expose a JSON mode; it is intended for quickly checking the cost, token usage, model breakdown, tool usage, and subagent session tree for the session you currently have open.
+
+### Install per project
+
+Copy the `.opencode/` directory and `session-stats.sh` into the root of the project where you run opencode:
+
+```text
+your-project/
+  session-stats.sh
+  .opencode/
+    commands/
+      stats.md
+    tools/
+      session_stats.ts
+```
+
+Then restart opencode from that project and run:
+
+```text
+/stats
+```
+
+### Install globally
+
+Run the installer from this repository:
+
+```bash
+./install.sh
+```
+
+It copies the command, tool, and script into your global opencode config directory:
+
+```text
+~/.config/opencode/
+  commands/
+    stats.md
+  tools/
+    session_stats.ts
+  session-stats.sh
+```
+
+Then restart opencode and run:
+
+```text
+/stats
+```
+
+The installer uses `~/.config/opencode` by default. To install into a custom opencode config directory, set `OPENCODE_CONFIG_DIR`:
+
+```bash
+OPENCODE_CONFIG_DIR=/path/to/opencode-config ./install.sh
+```
+
+Manual global installation is also possible: copy `.opencode/commands/stats.md`, `.opencode/tools/session_stats.ts`, and `session-stats.sh` into the same paths shown above.
+
+Restart opencode after installing or changing command/tool files. opencode loads these files at startup.
+
+### Requirements
+
+- `sqlite3` CLI with JSON output mode and JSON1 support
+- opencode custom tools support
+- `session-stats.sh` available through one of the tool's lookup paths: `OPENCODE_SESSION_STATS_SCRIPT`, the current project root (`./session-stats.sh`), next to the project `.opencode/` directory when copying this repository layout, or the global config directory (`~/.config/opencode/session-stats.sh`)
+
 ## Output sections
 
 | Section | Description |
